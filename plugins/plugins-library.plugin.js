@@ -206,7 +206,7 @@ async function createStoreHTML(context) {
 
       <!-- Список плагинов -->
       <div id="plugins-container">
-        ${createPluginsGrid(plugins)}
+        ${createPluginsGridHTML(plugins)}
       </div>
 
       <!-- Модальное окно деталей плагина -->
@@ -598,6 +598,64 @@ function createCategoriesSection(categories) {
             <p style="margin: 0; font-size: 0.9em; color: #666;">${category.description}</p>
           </div>
         `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function createPluginsGridHTML(plugins) {
+  if (plugins.length === 0) {
+    return `
+      <div style="text-align: center; padding: 3rem; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+        <h3>Плагины не найдены</h3>
+        <p>Попробуйте изменить параметры поиска</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+      ${plugins.map(plugin => createPluginCardHTML(plugin)).join('')}
+    </div>
+  `;
+}
+
+function createPluginCardHTML(plugin) {
+  return `
+    <div style="background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #e9ecef; transition: all 0.2s; cursor: pointer; position: relative;" 
+         onclick="showPluginDetails('${plugin.id}')"
+         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+      
+      ${plugin.featured ? '<div style="position: absolute; top: -8px; right: 12px; background: #ffd700; color: #333; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8em; font-weight: bold;">⭐ Рекомендуемый</div>' : ''}
+      ${plugin.verified ? '<div style="position: absolute; top: 12px; right: 12px; color: #28a745; font-size: 1.2em;" title="Проверенный плагин">✅</div>' : ''}
+      
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+        <div style="font-size: 2.5rem;">${plugin.icon || '🔌'}</div>
+        <div style="flex: 1;">
+          <h3 style="margin: 0 0 0.25rem 0; color: #333; font-size: 1.2em;">${plugin.name}</h3>
+          <div style="font-size: 0.9em; color: #666;">v${plugin.version} • ${plugin.author}</div>
+        </div>
+      </div>
+      
+      <p style="color: #555; margin: 0 0 1rem 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+        ${plugin.description}
+      </p>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+        ${plugin.tags.slice(0, 3).map(tag => `<span style="background: #e9ecef; color: #495057; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8em;">${tag}</span>`).join('')}
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; color: #666; margin-bottom: 1rem;">
+        <span>⬇️ ${(plugin.downloads || 0).toLocaleString()}</span>
+        <span>⭐ ${(plugin.rating || 0).toFixed(1)}</span>
+        <span>📦 ${plugin.size || 'N/A'}</span>
+      </div>
+      
+      <div style="display: flex; gap: 0.5rem;">
+        <button onclick="event.stopPropagation(); installPlugin('${plugin.id}')" style="flex: 1; padding: 0.5rem; background: #007acc; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">📥 Установить</button>
+        <button onclick="event.stopPropagation(); showPluginDetails('${plugin.id}')" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">ℹ️</button>
       </div>
     </div>
   `;
