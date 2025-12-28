@@ -30,7 +30,7 @@ async function activate(context) {
 
   // Добавляем пункт в сайдбар
   context.ui.addSidebarItem({
-    id: "plugin-store-sidebar",
+    id: "plugin-library-store-sidebar",
     label: "Магазин плагинов",
     icon: "📚",
     path: "/plugin/plugin-library/store",
@@ -209,6 +209,59 @@ async function createStoreHTML(context) {
         window.pluginRegistry = ${JSON.stringify(pluginRegistry)};
         window.installedPlugins = ${JSON.stringify(installedPlugins)};
 
+        // Делаем функции глобальными для доступа из HTML
+        window.installPlugin = installPlugin;
+        window.showPluginDetails = showPluginDetails;
+        window.closeModal = closeModal;
+        window.filterPlugins = filterPlugins;
+
+        async function installPlugin(pluginId) {
+          const plugin = window.pluginRegistry.plugins.find(p => p.id === pluginId);
+          if (!plugin) return;
+
+          try {
+            showNotification('Установка плагина...', 'info');
+            
+            // Эмулируем установку
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Добавляем в список установленных
+            window.installedPlugins.push({
+              id: plugin.id,
+              version: plugin.version,
+              installedAt: new Date().toISOString()
+            });
+
+            // Сохраняем в storage
+            localStorage.setItem('plugin-library-installed', JSON.stringify(window.installedPlugins));
+
+            showNotification('Плагин "' + plugin.name + '" успешно установлен!', 'success');
+            
+            // Обновляем интерфейс
+            filterPlugins();
+            closeModal();
+            
+          } catch (error) {
+            console.error('Ошибка установки плагина:', error);
+            showNotification('Ошибка при установке плагина', 'error');
+          }
+        };
+
+        function showPluginDetails(pluginId) {
+          const plugin = window.pluginRegistry.plugins.find(p => p.id === pluginId);
+          if (!plugin) return;
+
+          const isInstalled = window.installedPlugins.some(p => p.id === plugin.id);
+
+          document.getElementById('modal-content').innerHTML = '<div style="padding: 2rem; color: #fff;"><div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;"><div style="display: flex; align-items: center; gap: 1.5rem;"><div style="font-size: 4rem; background: #2a2a2a; padding: 1.5rem; border-radius: 12px; border: 1px solid #333;">' + (plugin.icon || '🔌') + '</div><div><h2 style="margin: 0 0 0.5rem 0; color: #fff; font-size: 2rem;">' + plugin.name + '</h2><div style="color: #888; font-size: 1.1rem;">v' + plugin.version + ' • ' + plugin.author + '</div></div></div><button onclick="closeModal()" style="background: #dc3545; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 1.5em; transition: all 0.2s;">×</button></div><div style="margin-bottom: 2rem;"><p style="color: #b0b0b0; line-height: 1.6; font-size: 1.1em;">' + (plugin.longDescription || plugin.description) + '</p></div><div style="display: flex; gap: 1rem; justify-content: center;"><button onclick="installPlugin(\'' + plugin.id + '\')" style="padding: 1rem 2rem; background: linear-gradient(45deg, #007acc, #0056b3); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1.1rem;">📥 Установить плагин</button></div></div>';
+
+          document.getElementById('plugin-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+          document.getElementById('plugin-modal').style.display = 'none';
+        }
+
         function filterPlugins() {
           const searchTerm = document.getElementById('search-input').value.toLowerCase();
           const categoryFilter = document.getElementById('category-filter').value;
@@ -242,6 +295,11 @@ async function createStoreHTML(context) {
           document.getElementById('plugins-container').innerHTML = createPluginsGrid(filteredPlugins);
         }
 
+        // Делаем функции глобальными
+        window.createPluginsGrid = createPluginsGrid;
+        window.createPluginCard = createPluginCard;
+        window.showNotification = showNotification;
+
         function createPluginsGrid(plugins) {
           if (plugins.length === 0) {
             return '<div style="text-align: center; padding: 4rem; color: #888;"><div style="font-size: 4rem; margin-bottom: 1rem;">🔍</div><h3 style="color: #fff; margin-bottom: 1rem;">Плагины не найдены</h3><p style="color: #888;">Попробуйте изменить параметры поиска</p></div>';
@@ -252,56 +310,8 @@ async function createStoreHTML(context) {
 
         function createPluginCard(plugin) {
           const isInstalled = window.installedPlugins.some(p => p.id === plugin.id);
-          const hasUpdate = isInstalled && window.installedPlugins.find(p => p.id === plugin.id)?.version !== plugin.version;
           
-          return '<div style="background: #2a2a2a; border-radius: 12px; padding: 2rem; border: 1px solid #333; transition: all 0.3s; cursor: pointer; position: relative;" onclick="showPluginDetails(\'' + plugin.id + '\')" onmouseover="this.style.transform=\'translateY(-4px)\'; this.style.boxShadow=\'0 8px 25px rgba(0,0,0,0.3)\'; this.style.borderColor=\'#007acc\'" onmouseout="this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'none\'; this.style.borderColor=\'#333\'"><div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;"><div style="font-size: 3rem; background: #1a1a1a; padding: 1rem; border-radius: 12px; border: 1px solid #333;">' + (plugin.icon || '🔌') + '</div><div style="flex: 1;"><h3 style="margin: 0 0 0.5rem 0; color: #fff; font-size: 1.3em; font-weight: 600;">' + plugin.name + '</h3><div style="font-size: 1rem; color: #888;">v' + plugin.version + ' • ' + plugin.author + '</div></div></div><p style="color: #b0b0b0; margin: 0 0 1.5rem 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 1rem;">' + plugin.description + '</p><div style="display: flex; gap: 0.75rem;"><button onclick="event.stopPropagation(); installPlugin(\'' + plugin.id + '\')" style="flex: 1; padding: 0.75rem; background: linear-gradient(45deg, #007acc, #0056b3); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.2s;">📥 Установить</button><button onclick="event.stopPropagation(); showPluginDetails(\'' + plugin.id + '\')" style="padding: 0.75rem 1.5rem; background: #333; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: all 0.2s;">ℹ️</button></div></div>';
-        }
-
-        function showPluginDetails(pluginId) {
-          const plugin = window.pluginRegistry.plugins.find(p => p.id === pluginId);
-          if (!plugin) return;
-
-          const isInstalled = window.installedPlugins.some(p => p.id === plugin.id);
-
-          document.getElementById('modal-content').innerHTML = '<div style="padding: 2rem; color: #fff;"><div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;"><div style="display: flex; align-items: center; gap: 1.5rem;"><div style="font-size: 4rem; background: #2a2a2a; padding: 1.5rem; border-radius: 12px; border: 1px solid #333;">' + (plugin.icon || '🔌') + '</div><div><h2 style="margin: 0 0 0.5rem 0; color: #fff; font-size: 2rem;">' + plugin.name + '</h2><div style="color: #888; font-size: 1.1rem;">v' + plugin.version + ' • ' + plugin.author + '</div></div></div><button onclick="closeModal()" style="background: #dc3545; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 1.5em; transition: all 0.2s;">×</button></div><div style="margin-bottom: 2rem;"><p style="color: #b0b0b0; line-height: 1.6; font-size: 1.1em;">' + (plugin.longDescription || plugin.description) + '</p></div><div style="display: flex; gap: 1rem; justify-content: center;"><button onclick="installPlugin(\'' + plugin.id + '\')" style="padding: 1rem 2rem; background: linear-gradient(45deg, #007acc, #0056b3); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1.1rem;">📥 Установить плагин</button></div></div>';
-
-          document.getElementById('plugin-modal').style.display = 'block';
-        }
-
-        function closeModal() {
-          document.getElementById('plugin-modal').style.display = 'none';
-        }
-
-        async function installPlugin(pluginId) {
-          const plugin = window.pluginRegistry.plugins.find(p => p.id === pluginId);
-          if (!plugin) return;
-
-          try {
-            showNotification('Установка плагина...', 'info');
-            
-            // Эмулируем установку
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Добавляем в список установленных
-            window.installedPlugins.push({
-              id: plugin.id,
-              version: plugin.version,
-              installedAt: new Date().toISOString()
-            });
-
-            // Сохраняем в storage
-            localStorage.setItem('plugin-library-installed', JSON.stringify(window.installedPlugins));
-
-            showNotification('Плагин "' + plugin.name + '" успешно установлен!', 'success');
-            
-            // Обновляем интерфейс
-            filterPlugins();
-            closeModal();
-            
-          } catch (error) {
-            console.error('Ошибка установки плагина:', error);
-            showNotification('Ошибка при установке плагина', 'error');
-          }
+          return '<div style="background: #2a2a2a; border-radius: 12px; padding: 2rem; border: 1px solid #333; transition: all 0.3s; cursor: pointer; position: relative;" onclick="showPluginDetails(\'' + plugin.id + '\')" onmouseover="this.style.transform=\'translateY(-4px)\'; this.style.boxShadow=\'0 8px 25px rgba(0,0,0,0.3)\'; this.style.borderColor=\'#007acc\'" onmouseout="this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'none\'; this.style.borderColor=\'#333\'"><div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;"><div style="font-size: 3rem; background: #1a1a1a; padding: 1rem; border-radius: 12px; border: 1px solid #333;">' + (plugin.icon || '🔌') + '</div><div style="flex: 1;"><h3 style="margin: 0 0 0.5rem 0; color: #fff; font-size: 1.3em; font-weight: 600;">' + plugin.name + '</h3><div style="font-size: 1rem; color: #888;">v' + plugin.version + ' • ' + plugin.author + '</div></div></div><p style="color: #b0b0b0; margin: 0 0 1.5rem 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 1rem;">' + plugin.description + '</p><div style="display: flex; gap: 0.75rem;"><button onclick="event.stopPropagation(); installPlugin(\'' + plugin.id + '\')" style="flex: 1; padding: 0.75rem; background: linear-gradient(45deg, #007acc, #0056b3); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.2s;">' + (isInstalled ? '✅ Установлен' : '📥 Установить') + '</button><button onclick="event.stopPropagation(); showPluginDetails(\'' + plugin.id + '\')" style="padding: 0.75rem 1.5rem; background: #333; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: all 0.2s;">ℹ️</button></div></div>';
         }
 
         function showNotification(message, type) {
